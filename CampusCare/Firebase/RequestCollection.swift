@@ -39,4 +39,35 @@ final class RequestCollection {
                 completion(.success(requests))
             }
         }
+    
+//prefix search
+        func searchRequests(prefix: String, completion: @escaping (Result<[RequestModel], Error>) -> Void) {
+
+            // emptey search do all request
+            if prefix.isEmpty {
+                fetchAllRequests(completion: completion)
+                return
+            }
+
+            let endText = prefix + "\u{f8ff}"
+
+            requestsCollectionRef
+                .whereField("title", isGreaterThanOrEqualTo: prefix)
+                .whereField("title", isLessThanOrEqualTo: endText)
+                .getDocuments { snapshot, error in
+                    
+                    if let error = error {
+                        completion(.failure(error))
+                        return
+                    }
+                    
+                    guard let documents = snapshot?.documents else {
+                        completion(.success([]))
+                        return
+                    }
+                    
+                    let results = documents.compactMap { RequestModel(from: $0) }
+                    completion(.success(results))
+                }
+        }
 }
