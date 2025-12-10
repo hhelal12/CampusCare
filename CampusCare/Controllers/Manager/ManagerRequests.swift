@@ -10,9 +10,11 @@ import FirebaseFirestore
 
 class ManagerRequests: UIViewController {
 
-    
     let requestCollection = RequestCollection()
     var requests: [RequestModel] = []
+    
+    @IBOutlet weak var stackVIew: UIStackView!
+    @IBOutlet weak var searchBar: UISearchBar!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -23,16 +25,19 @@ class ManagerRequests: UIViewController {
         view.addSubview(headerView)
         
         // Set page-specific title
-           headerView.setTitle("Requests Pool")  // Change this for each screen
+        headerView.setTitle("Requests Pool")// Change this for each screen
+
+        // StackView top padding
+        stackVIew.layoutMargins = UIEdgeInsets(top: 130, left: 0, bottom: 0, right: 0)
+        stackVIew.isLayoutMarginsRelativeArrangement = true
         
-        // Add top padding so stack view starts below header
-          stackVIew.layoutMargins = UIEdgeInsets(top: 80, left: 0, bottom: 0, right: 0)
-          stackVIew.isLayoutMarginsRelativeArrangement = true
-        
+        // search Bar
+        searchBar.delegate = self
+
         FetchRequests()
     }
     
-    
+    //  fetch All
     func FetchRequests() {
         requestCollection.fetchAllRequests { [weak self] result in
             DispatchQueue.main.async {
@@ -40,43 +45,46 @@ class ManagerRequests: UIViewController {
                 case .success(let list):
                     self?.requests = list
                     print("Fetched \(list.count) requests")
+                    self?.reloadStackView()
                     
-                    // clear previous items first
-                    self?.stackVIew.arrangedSubviews.forEach { $0.removeFromSuperview() }
-
-                    for r in list {
-                        let item = RequestItemView.instantiate() // XIB-loaded instance
-                        item.configure(with: r)
-
-                        item.translatesAutoresizingMaskIntoConstraints = false
-                        item.heightAnchor.constraint(equalToConstant: 140).isActive = true
-
-                        self?.stackVIew.addArrangedSubview(item)
-                    }
-
                 case .failure(let error):
                     print("Error fetching requests: \(error.localizedDescription)")
                 }
             }
         }
     }
-
-
     
-    //stack view
-    @IBOutlet weak var stackVIew: UIStackView!
-    
-    
-    
+    // ui reload
+    func reloadStackView() {
+        stackVIew.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destination.
-        // Pass the selected object to the new view controller.
+        for r in requests {
+            let item = RequestItemView.instantiate()
+            item.configure(with: r)
+            
+            item.translatesAutoresizingMaskIntoConstraints = false
+            item.heightAnchor.constraint(equalToConstant: 140).isActive = true
+            stackVIew.addArrangedSubview(item)
+        }
     }
-    */
-
 }
+
+// search Bar Delegate
+extension ManagerRequests: UISearchBarDelegate {
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        requestCollection.searchRequests(prefix: searchText) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let list):
+                    self?.requests = list
+                    self?.reloadStackView()
+                    
+                case .failure(let error):
+                    print("Search error: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+}
+
+    
